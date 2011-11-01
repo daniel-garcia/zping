@@ -1,3 +1,9 @@
+// Copyright (c) 2011, Daniel Garcia
+// All rights reserved.
+// 
+// This program is licensed under the BSD License.
+// See LICENSE file for details. 
+
 package main
 
 import (
