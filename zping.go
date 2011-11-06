@@ -7,7 +7,7 @@
 package main
 
 import (
-        "log"
+	"log"
 	"bytes"
 	"fmt"
 	"http"
@@ -54,17 +54,15 @@ func makePingRequest(id, seq, pktlen int, filler []byte) []byte {
 	return p
 }
 
-
 type PingResponse struct {
 	dsthost string
-	rtt int64
+	rtt     int64
 }
 
 type PingRequest struct {
-	dsthost string
+	dsthost         string
 	responseChannel chan PingResponse
 }
-
 
 func parsePingReply(p []byte) (id, seq int) {
 	id = int(p[4])<<8 | int(p[5])
@@ -72,19 +70,18 @@ func parsePingReply(p []byte) (id, seq int) {
 	return
 }
 
-
-func PingPoller (service chan PingRequest) {
+func PingPoller(service chan PingRequest) {
 
 	srchost := ""
 	for {
-		r := <- service
+		r := <-service
 		log.Printf("Received request for %s", r.dsthost)
 		var (
 			laddr *net.IPAddr
-			err   os.Error
+			err   error
 		)
 
-		raddr, err := net.ResolveIPAddr(r.dsthost)
+		raddr, err := net.ResolveIPAddr("ip", r.dsthost)
 		if err != nil {
 			log.Println(`net.ResolveIPAddr("%v") = %v, %v`, r.dsthost, raddr, err)
 			reply := PingResponse{r.dsthost, -1}
@@ -135,8 +132,8 @@ func PingPoller (service chan PingRequest) {
 				r.responseChannel <- reply
 				break
 			}
-			log.Println("response took %d nanoseconds.", end - start)
-			reply := PingResponse {r.dsthost, end - start}
+			log.Println("response took %d nanoseconds.", end-start)
+			reply := PingResponse{r.dsthost, end - start}
 			r.responseChannel <- reply
 			break
 		}
@@ -146,15 +143,15 @@ func PingPoller (service chan PingRequest) {
 	}
 }
 
-func handler (w http.ResponseWriter, r *http.Request) {
+func handler(w http.ResponseWriter, r *http.Request) {
 
 	responseChan := make(chan PingResponse)
-	request := PingRequest { r.URL.Path[1:], responseChan }
+	request := PingRequest{r.URL.Path[1:], responseChan}
 	requestChan <- request
 	var (
 		response PingResponse
 	)
-        response = <- request.responseChannel
+	response = <-request.responseChannel
 
 	fmt.Fprintln(w, "response took %d nanoseconds.", response.rtt)
 }
@@ -172,4 +169,3 @@ func main() {
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8081", nil)
 }
-
