@@ -10,7 +10,7 @@ import (
 	"log"
 	"bytes"
 	"fmt"
-	"http"
+	"net/http"
 	"os"
 	"net"
 	"time"
@@ -102,7 +102,7 @@ func PingPoller(service chan PingRequest) {
 		const pingpktlen = 128
 		sendpkt := makePingRequest(sendid, sendseq, pingpktlen, []byte("Go Go Gadget Ping!!!"))
 
-		start := time.Nanoseconds()
+		start := time.Now()
 		n, err := c.WriteToIP(sendpkt, raddr)
 		if err != nil || n != pingpktlen {
 			log.Println(`net.WriteToIP(..., %v) = %v, %v`, raddr, n, err)
@@ -111,7 +111,7 @@ func PingPoller(service chan PingRequest) {
 			continue
 		}
 
-		c.SetTimeout(100e6)
+		c.SetReadDeadline(time.Now().Add(time.Second * 2))
 		resp := make([]byte, 1024)
 		for {
 			n, from, err := c.ReadFrom(resp)
@@ -125,15 +125,15 @@ func PingPoller(service chan PingRequest) {
 				continue
 			}
 			rcvid, rcvseq := parsePingReply(resp)
-			end := time.Nanoseconds()
+			end := time.Now()
 			if rcvid != sendid || rcvseq != sendseq {
 				log.Println(`Ping reply saw id,seq=0x%x,0x%x (expected 0x%x, 0x%x)`, rcvid, rcvseq, sendid, sendseq)
 				reply := PingResponse{r.dsthost, -1}
 				r.responseChannel <- reply
 				break
 			}
-			log.Println("response took %d nanoseconds.", end-start)
-			reply := PingResponse{r.dsthost, end - start}
+			log.Println("response took %d nanoseconds.", end.Sub(start))
+			reply := PingResponse{r.dsthost, int64(end.Sub(start))}
 			r.responseChannel <- reply
 			break
 		}
